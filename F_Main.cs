@@ -165,6 +165,11 @@ namespace TaskMaker
             string lvlMax = "";
             string lvlInfo = "";
 
+            string phpLvlInfo = "";
+            string phpVocInfo = "";
+            string phpItemInfo = "";
+            string phpInfoExpOrMoney = "";
+
             string[] nameE = name.Split(' ');
             string nameEx = "";
 
@@ -244,7 +249,6 @@ namespace TaskMaker
             int containeID = 0;
             int itensID = 0;
 
-
             using (StreamWriter luaWriter = new StreamWriter("build/tasks.lua", append: true))
             {
                 luaWriter.WriteLine(newLuaContent);
@@ -290,6 +294,7 @@ namespace TaskMaker
                 $"\"reward\",QuestValue({Storage})>={Amount} -> \"Thank you! Here's your reward.\"{containers}{itens}, Amount={Exp}, Experience(Amount), Price={Money}, CreateMoney, SetQuestValue(999, 0), SetQuestValue({Storage}, 0), SetQuestValue({Quest}, QuestValue({Quest})+1)\n" +
                 $"\"reward\",QuestValue({Storage})>=1,QuestValue({Storage})<{Amount} -> \"You have to kill {Amount} {name}. Come back later.\", Idle\n" +
                 $"============================================================\n";
+                phpInfoExpOrMoney = $" {Money} gold and {Exp} experience";
 
             }
             else if (Exp > 0)
@@ -310,6 +315,7 @@ namespace TaskMaker
                 $"\"reward\",QuestValue({Storage})>={Amount} -> \"Thank you! Here's your reward.\"{containers}{itens}, Amount={Exp}, Experience(Amount), SetQuestValue(999, 0), SetQuestValue({Storage}, 0), SetQuestValue({Quest}, QuestValue({Quest})+1)\n" +
                 $"\"reward\",QuestValue({Storage})>=1,QuestValue({Storage})<{Amount} -> \"You have to kill {Amount} {name}. Come back later.\", Idle\n\n" +
                 $"============================================================\n";
+                phpInfoExpOrMoney = $"{Exp} experience";
             }
             else if (Money > 0)
             {
@@ -329,6 +335,7 @@ namespace TaskMaker
                 $"\"reward\",QuestValue({Storage})>={Amount} -> \"Thank you! Here's your reward.\"{containers}{itens}, Price={Money}, CreateMoney, SetQuestValue(999, 0), SetQuestValue({Storage}, 0), SetQuestValue({Quest}, QuestValue({Quest})+1)\n" +
                 $"\"reward\",QuestValue({Storage})>=1,QuestValue({Storage})<{Amount} -> \"You have to kill {Amount} {name}. Come back later.\", Idle\n\n" +
                 $"============================================================\n";
+                phpInfoExpOrMoney = $"{Money} gold";
             }
             else if (onlyItem)
             {
@@ -346,12 +353,70 @@ namespace TaskMaker
             {
                 unknownWriter.WriteLine(Content);
             }
-            if (Money > 0)
+
+            //php page
+            string imgItem = "";
+
+            if (Money > 0 && cb_items.Text.Length <= 1)
             {
                 itensID = 3031;
+                imgItem = $"/images/items/{itensID}.gif";
             }
+            else
+            {
+                if (itensID != 0)
+                {
+                    imgItem = $"/images/items/{itensID}.gif";
+                }
+            }
+
+            if (!string.IsNullOrEmpty(Voc))
+            {
+                phpVocInfo = "<br>";
+                string VocThis = Voc.TrimEnd(',');
+                string[] vocInfo2 = VocThis.Split(',');
+                if (vocInfo2.Length == 1)
+                {
+                    phpVocInfo += $"Req: {VocThis}";
+                }
+                else
+                {
+                    phpVocInfo += $"Req: {string.Join("/", vocInfo2.Take(vocInfo2.Length - 1))}/{vocInfo2.Last()}";
+                }
+            }
+
+            if (cb_items.Text.Length > 1)
+            {
+                phpItemInfo = $"{nud_items.Value}x {selectedItem}";
+                if (phpInfoExpOrMoney.Length > 0)
+                {
+                    phpItemInfo += "<br>";
+                }
+            }
+
+            if (phpItemInfo.Length > 0 || phpInfoExpOrMoney.Length > 0 || phpVocInfo.Length > 0 && (nud_lvlMin.Value > 0 || nud_lvlMax.Value > 0))
+            {
+                phpLvlInfo = "<br>";
+            }
+            if (nud_lvlMin.Value > 0)
+            {
+                phpLvlInfo += $"Level: {nud_lvlMin.Value}";
+            }
+
+            if (nud_lvlMax.Value > 0)
+            {
+                if (nud_lvlMin.Value > 0)
+                {
+                    phpLvlInfo += $" to {nud_lvlMax.Value}";
+                }
+                else
+                {
+                    phpLvlInfo += $"Max Level: {nud_lvlMax.Value}";
+                }
+            }
+
             string NameGif = string.Join("", name.Split(' ').Where(s => !string.IsNullOrWhiteSpace(s)));
-            string PhpContent = $"<tr style=\"height: 18px; text-align: center;\">\r\n<td style=\"width: 32%; height: 18px;\">\r\n<p><a title=\"{name}\" href=\"/?subtopic=creatures&amp;creature={name.Replace(' ', '+').ToLower()}\"><img style=\"display: block; margin-left: auto; margin-right: auto;\" src=\"/images/monsters/{NameGif.ToLower()}.gif\" width=\"32\" height=\"32\"></a></p>\r\n</td>\r\n<td style=\"width: 8%; height: 18px; text-align: center;\">{Amount}</td>\r\n<td style=\"width: 48%; height: 18px;\">&nbsp;<img src=\"/images/items/{itensID}.gif\" alt=\"\" width=\"32\" height=\"32\">{diag_money}{diag_exp}{diag_money_exp}{container_diag}</td>\r\n<td style=\"width: 18%; height: 18px;\">&nbsp;{exp}</td>\r\n</tr>";
+            string PhpContent = $"['name' => '{name}', 'damage' => {Amount}, 'reward' => '{phpItemInfo}{phpInfoExpOrMoney}{phpVocInfo}{phpLvlInfo}', 'image' => '{imgItem}'],";
             using (StreamWriter luaWriter = new StreamWriter("build/tasks-table.php", append: true))
             {
                 luaWriter.WriteLine(PhpContent);
